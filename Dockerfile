@@ -21,6 +21,7 @@ RUN sh fix_ompi_dlopen
 RUN git clone --depth=1 https://${BITBUCKET_USER}:${BITBUCKET_PASS}@bitbucket.org/${BITBUCKET_USER}/libofm.git && \
     mv libofm $DOCKER_HOME && \
     cd $DOCKER_HOME/libofm && \
+    source /opt/openfoam5/etc/bashrc && \
     ./configure --python && \
     ./Allwmake
 
