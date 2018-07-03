@@ -1,0 +1,26 @@
+os: linux
+dist: trusty
+language: python
+services: docker
+
+env:
+  global:
+    - BASE=unifem/coupler-desktop:latest VERSION=foam_ccx
+
+
+before_script:
+  - docker --version
+  - docker login -u "$DOCKER_USERNAME" -p "$DOCKER_USERPASS"
+  - docker pull $BASE
+
+script:
+  # Build only if the commit range of a push contains Dockerfile or .travis.yml
+  - '[[ "$TRAVIS_EVENT_TYPE" == "push" && -n "$TRAVIS_COMMIT_RANGE" &&
+        -n $(git log --since $(docker inspect $BASE | grep Created | perl -e "s/.+\"([\d-:T]+).+$/\$1/g" -p)) &&
+        -z "$(git diff --name-only $TRAVIS_COMMIT_RANGE |
+            grep -e Dockerfile -e .travis.yml -e config -e WELCOME)" ]] ||
+     (docker build --build-arg BITBUCKET_PASS=$BITBUCKET_PASS --build-arg BITBUCKET_USER=$BITBUCKET_USER
+                   --tag $DOCKER_USERNAME/docker-coupler:$VERSION . &&
+      docker push $DOCKER_USERNAME/docker-coupler &&
+      touch success)'
+  - docker images

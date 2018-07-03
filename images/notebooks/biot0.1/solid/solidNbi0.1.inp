@@ -1,0 +1,38 @@
+*INCLUDE,INPUT=solid/mesh.common
+*INCLUDE,INPUT=solid/ifaces.common
+*INCLUDE,INPUT=solid/fixedT.common
+*INCLUDE,INPUT=solid/inodes.common
+
+** define a material
+*MATERIAL, NAME=Dummy
+*DENSITY
+1.0
+*CONDUCTIVITY
+3.0
+*SPECIFIC HEAT
+3.0
+
+*INITIAL CONDITIONS,TYPE=TEMPERATURE
+Nall,600.0
+
+** plugin material
+*SOLID SECTION, ELSET=Eall, MATERIAL=Dummy
+
+** Fixed boundary condition outside of steps
+*BOUNDARY
+Bottom,11,11,600.0
+
+*STEP, NLGEOM, INC=2000000000
+*HEAT TRANSFER, DIRECT
+0.01,50.0
+
+** include our default 4 natural walls
+*INCLUDE,INPUT=solid/dflux.common
+
+** include our interface condition
+*INCLUDE,INPUT=solid/iflux.interface
+
+*NODE FILE, FREQUENCY=100
+NT
+
+*END STEP
