@@ -1,0 +1,17 @@
+*.vtk
+*.frd
+*.sta
+*.dat
+*.cvg
+*~
+__pycache__
+spooles.out
+*.mat
+*.debug
+*.check
+.ipynb_checkpoints
+*.pvd
+*.vtu
+*.ini
+*.move
+*.log
