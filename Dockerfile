@@ -1,4 +1,4 @@
-FROM docker-coupler:latest
+FROM chiao/docker-coupler:latest
 LABEL maintainer "Qiao Chen <benechiao@gmail.com>"
 
 USER root
