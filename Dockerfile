@@ -14,7 +14,7 @@ ADD fix_ompi_dlopen /tmp
 RUN sudo apt-get update && \
     sudo apt-get install -y patchelf
 
-RUN sudo sh /tmp/fix_ompi_dlopen && rm -rf /tmp/fix_ompi_dlopen
+RUN sudo sh /tmp/fix_ompi_dlopen && sudo rm -rf /tmp/fix_ompi_dlopen
 
 # libofm
 RUN git clone --depth=1 https://${BITBUCKET_USER}:${BITBUCKET_PASS}@bitbucket.org/${BITBUCKET_USER}/libofm.git && \
