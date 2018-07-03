@@ -48,7 +48,7 @@ thesis section 4.
 For solid side, we simply choose the thermal conductivity coefficients to be
 3 and 0.3, so that we have two test cases, i.e. Biot=0.1 and Biot=1 resp.
 
-Here is the result plot for :math:`Biot=1`
+Here is the result plot for Biot=1
 
 .. image:: bi1.png
 
