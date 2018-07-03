@@ -1,3 +1,0 @@
-#!/bin/sh
-
-bash /opt/openfoam5/etc/bashrc
