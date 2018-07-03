@@ -13,8 +13,8 @@ ADD install_libofm $DOCKER_HOME
 
 # install patchelf to fix openmpi2 dlopen issues that will crash python/matlab/java, etc
 # see https://github.com/open-mpi/ompi/issues/3705
-RUN sudo apt-get update && \
-    sudo apt-get install -y patchelf
+RUN apt-get update && \
+    apt-get install -y patchelf
 
 RUN sh /tmp/fix_ompi_dlopen && rm -rf /tmp/fix_ompi_dlopen
 
