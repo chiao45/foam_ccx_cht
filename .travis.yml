@@ -5,7 +5,7 @@ services: docker
 
 env:
   global:
-    - BASE=unifem/coupler-desktop:latest VERSION=foam_ccx
+    - BASE=chiao/docker-coupler:latest VERSION=foam_ccx
 
 
 before_script:
