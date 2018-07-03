@@ -20,6 +20,7 @@ RUN sh /tmp/fix_ompi_dlopen
 # libofm
 RUN git clone --depth=1 https://${BITBUCKET_USER}:${BITBUCKET_PASS}@bitbucket.org/${BITBUCKET_USER}/libofm.git && \
     cd libofm && \
+    bash && \
     sh /tmp/source_foam && \
     ./configure --python && \
     ./Allwmake
