@@ -22,7 +22,6 @@ RUN sudo sh /tmp/fix_ompi_dlopen
 RUN git clone --depth=1 https://${BITBUCKET_USER}:${BITBUCKET_PASS}@bitbucket.org/${BITBUCKET_USER}/libofm.git && \
     cd libofm && \
     bash && \
-    sh $DOCKER_HOME/.profile && \
     ./configure --python && \
     ./Allwmake
 
