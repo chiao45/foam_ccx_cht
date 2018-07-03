@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# it seems like we have to install through a shell script...
+
+. /opt/openfoam5/etc/bashrc
+git clone --depth=1 https://$BITBUCKET_USER:$BITBUCKET_PASS@bitbucket.org/$BITBUCKET_USER/libofm.git
+cd libofm
+./configure --python
+./Allwmake
