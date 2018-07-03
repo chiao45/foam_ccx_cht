@@ -24,5 +24,7 @@ RUN git clone --depth=1 https://${BITBUCKET_USER}:${BITBUCKET_PASS}@bitbucket.or
     ./configure --python && \
     ./Allwmake
 
+RUN rm -rf /tmp/*
+
 WORKDIR $DOCKER_HOME
 USER root
