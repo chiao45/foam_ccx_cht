@@ -14,7 +14,7 @@ RUN apt-get update && \
     apt-get install -y patchelf && \
     pip3 install -U meshio && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    rm -rf /var/lib/apt/lists/* /var/tmp/*
 
 # fix dlopen with openmpi
 RUN sh /tmp/fix_ompi_dlopen && rm -rf /tmp/fix_ompi_dlopen
@@ -22,6 +22,7 @@ RUN sh /tmp/fix_ompi_dlopen && rm -rf /tmp/fix_ompi_dlopen
 RUN echo ${SSH_KEY} > $DOCKER_HOME/.ssh/id_rsa_base64 && \
     base64 --decode --ignore-garbage $DOCKER_HOME/.ssh/id_rsa_base64 > $DOCKER_HOME/.ssh/id_rsa && \
     chmod 600 $DOCKER_HOME/.ssh/id_rsa && \
+    rm -rf $DOCKER_HOME/.ssh/id_rsa_base64 && \
     eval $(ssh-agent) && \
     echo -e "StrictHostKeyChecking no" >> /etc/ssh/ssh_config && \
     ssh-add $DOCKER_HOME/.ssh/id_rsa && \
