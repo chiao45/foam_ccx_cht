@@ -22,6 +22,7 @@ RUN sh /tmp/fix_ompi_dlopen && rm -rf /tmp/fix_ompi_dlopen && \
 RUN mkdir -p /root/.ssh && \
     echo ${SSH_KEY} > id_rsa_base64 && \
     cat id_rsa_base64 | base64 -d > /root/.ssh/id_rsa && \
+    chmod 600 /root/.ssh/id_rsa && \
     touch /root/.ssh/known_hosts && \
     ssh-keyscan bitbucket.org >> /root/.ssh/known_hosts && \
     rm -rf id_rsa_base64 && \
