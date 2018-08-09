@@ -19,19 +19,18 @@ RUN sh /tmp/fix_ompi_dlopen && rm -rf /tmp/fix_ompi_dlopen && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /var/tmp/*
 
-RUN echo ${SSH_KEY} > $DOCKER_HOME/.ssh/id_rsa_base64 && \
-    cat $DOCKER_HOME/.ssh/id_rsa_base64 | base64 -d > $DOCKER_HOME/.ssh/id_rsa && \
-    chmod 600 $DOCKER_HOME/.ssh/id_rsa && \
-    rm -rf $DOCKER_HOME/.ssh/id_rsa_base64 && \
-    eval $(ssh-agent) && \
-    echo -e "StrictHostKeyChecking no" >> /etc/ssh/ssh_config && \
-    ssh-add $DOCKER_HOME/.ssh/id_rsa && \
+RUN mkdir -p /root/.ssh && \
+    echo ${SSH_KEY} > id_rsa_base64 && \
+    cat id_rsa_base64 | base64 -d > /root/.ssh/id_rsa && \
+    touch /root/.ssh/known_hosts && \
+    ssh-keyscan bitbucket.org >> /root/.ssh/known_hosts && \
+    rm -rf id_rsa_base64 && \
     git clone --depth=1 git@bitbucket.org:QiaoC/pydtk2.git ./apps/pydtk2 && \
     git clone -b parallel --depth=1 git@bitbucket.org:QiaoC/pydtk2.git ./apps/parpydtk2 && \
     git clone --depth=1 git@bitbucket.org:QiaoC/libcalculix.git ./apps/libcalculix && \
     git clone --depth=1 git@bitbucket.org:QiaoC/pyccx.git ./apps/pyccx && \
     git clone --depth=1 git@bitbucket.org:QiaoC/libofm.git ./apps/libofm && \
-    rm -rf $DOCKER_HOME/.ssh/id_rsa && \
+    rm -rf /root/.ssh/id_rsa && \
     chown -R $DOCKER_USER:$DOCKER_GROUP $DOCKER_HOME
 
 WORKDIR $DOCKER_HOME
