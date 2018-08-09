@@ -50,15 +50,19 @@ For solid side, we simply choose the thermal conductivity coefficients to be
 
 Here are the result plots for Biot=1
 
-.. figure:: itr_par_foam_ccx.png
+.. |fig1| image:: itr_par_foam_ccx.png
     :scale: 50 %
+    :align: middle
 
-    Interface temperature results
-
-.. figure:: vert_par_foam_ccx.png
+.. |fig2| image:: vert_par_foam_ccx.png
     :scale: 50 %
+    :align: middle
 
-    Vertical temperature at x=0.05
+.. table:: Left: interface temperature  Right: vertical at x=0.05
+
+    +--------+--------+
+    | |fig1| + |fig2| |
+    +--------+--------+
 
 Here is the fluid mesh, the solid simply uses unstructured P1 elements
 
