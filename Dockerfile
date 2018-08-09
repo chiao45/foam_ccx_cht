@@ -12,12 +12,12 @@ ADD fix_ompi_dlopen /tmp
 # see https://github.com/open-mpi/ompi/issues/3705
 RUN apt-get update && \
     apt-get install -y patchelf && \
-    pip3 install -U meshio && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /var/tmp/*
+    pip3 install -U meshio
 
 # fix dlopen with openmpi
-RUN sh /tmp/fix_ompi_dlopen && rm -rf /tmp/fix_ompi_dlopen
+RUN sh /tmp/fix_ompi_dlopen && rm -rf /tmp/fix_ompi_dlopen && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /var/tmp/*
 
 RUN echo ${SSH_KEY} > $DOCKER_HOME/.ssh/id_rsa_base64 && \
     base64 --decode --ignore-garbage $DOCKER_HOME/.ssh/id_rsa_base64 > $DOCKER_HOME/.ssh/id_rsa && \
