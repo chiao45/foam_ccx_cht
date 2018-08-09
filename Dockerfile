@@ -4,7 +4,7 @@ LABEL maintainer "Qiao Chen <benechiao@gmail.com>"
 USER root
 WORKDIR $DOCKER_HOME
 
-ARG SSH_KEY
+ARG TOKEN
 
 ADD fix_ompi_dlopen /tmp
 
@@ -12,26 +12,16 @@ ADD fix_ompi_dlopen /tmp
 # see https://github.com/open-mpi/ompi/issues/3705
 RUN apt-get update && \
     apt-get install -y patchelf && \
-    pip3 install -U meshio
-
-# fix dlopen with openmpi
-RUN sh /tmp/fix_ompi_dlopen && rm -rf /tmp/fix_ompi_dlopen && \
+    pip3 install -U meshio && \
+    sh /tmp/fix_ompi_dlopen && rm -rf /tmp/fix_ompi_dlopen && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /var/tmp/*
 
-RUN mkdir -p /root/.ssh && \
-    echo ${SSH_KEY} > id_rsa_base64 && \
-    cat id_rsa_base64 | base64 -d > /root/.ssh/id_rsa && \
-    chmod 600 /root/.ssh/id_rsa && \
-    touch /root/.ssh/known_hosts && \
-    ssh-keyscan bitbucket.org >> /root/.ssh/known_hosts && \
-    rm -rf id_rsa_base64 && \
-    git clone --depth=1 git@bitbucket.org:QiaoC/pydtk2.git ./apps/pydtk2 && \
-    git clone -b parallel --depth=1 git@bitbucket.org:QiaoC/pydtk2.git ./apps/parpydtk2 && \
-    git clone --depth=1 git@bitbucket.org:QiaoC/libcalculix.git ./apps/libcalculix && \
-    git clone --depth=1 git@bitbucket.org:QiaoC/pyccx.git ./apps/pyccx && \
-    git clone --depth=1 git@bitbucket.org:QiaoC/libofm.git ./apps/libofm && \
-    rm -rf /root/.ssh/id_rsa && \
+RUN git clone --depth=1 https://qiaoc@bitbucket.org/qiaoc/pydtk2.git ./apps/pydtk2 && \
+    git clone -b parallel --depth=1 https://qiaoc@bitbucket.org/qiaoc/pydtk2.git ./apps/parpydtk2 && \
+    git clone --depth=1 https://qiaoc:${TOKEN}@bitbucket.org/qiaoc/libcalculix.git ./apps/libcalculix && \
+    git clone --depth=1 https://qiaoc:${TOKEN}@bitbucket.org/qiaoc/pyccx.git ./apps/pyccx && \
+    git clone --depth=1 https://qiaoc:${TOKEN}@bitbucket.org/qiaoc/libofm.git ./apps/libofm && \
     chown -R $DOCKER_USER:$DOCKER_GROUP $DOCKER_HOME
 
 WORKDIR $DOCKER_HOME

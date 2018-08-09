@@ -19,7 +19,7 @@ script:
         -n $(git log --since $(docker inspect $BASE | grep Created | perl -e "s/.+\"([\d-:T]+).+$/\$1/g" -p)) &&
         -z "$(git diff --name-only $TRAVIS_COMMIT_RANGE |
             grep -e Dockerfile -e .travis.yml -e config -e WELCOME)" ]] ||
-     (docker build --build-arg SSH_KEY=$SSH_KEY
+     (docker build --build-arg TOKEN=$TOKEN
                    --tag $DOCKER_USERNAME/docker-coupler:$VERSION . &&
       docker push $DOCKER_USERNAME/docker-coupler &&
       touch success)'

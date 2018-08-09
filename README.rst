@@ -48,9 +48,24 @@ thesis section 4.
 For solid side, we simply choose the thermal conductivity coefficients to be
 3 and 0.3, so that we have two test cases, i.e. Biot=0.1 and Biot=1 resp.
 
-Here is the result plot for Biot=1
+Here are the result plots for Biot=1
 
-.. image:: bi1.png
+.. |fig1| figure:: itr_par_foam_ccx.png
+    :scale: 50 %
+
+    Interface temperature results
+
+.. |fig2| image:: vert_par_foam_ccx.png
+    :scale: 50 %
+
+    Vertical temperature at x=0.05
+
+.. table:: Simulation results, running in parallel
+    :align: center
+
+    +--------+--------+
+    | |fig1| | |fig2| |
+    +--------+--------+
 
 Here is the fluid mesh, the solid simply uses unstructured P1 elements
 
