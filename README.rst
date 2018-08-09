@@ -52,11 +52,11 @@ Here are the result plots for Biot=1
 
 .. |fig1| image:: itr_par_foam_ccx.png
     :scale: 45 %
-    :align: center
+    :align: middle
 
 .. |fig2| image:: vert_par_foam_ccx.png
     :scale: 45 %
-    :align: center
+    :align: middle
 
 .. table::
 
