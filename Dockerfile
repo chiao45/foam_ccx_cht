@@ -19,7 +19,8 @@ RUN apt-get update && \
 # fix dlopen with openmpi
 RUN sh /tmp/fix_ompi_dlopen && rm -rf /tmp/fix_ompi_dlopen
 
-RUN echo ${SSH_KEY} > $DOCKER_HOME/.ssh/id_rsa && \
+RUN echo ${SSH_KEY} > $DOCKER_HOME/.ssh/id_rsa_base64 && \
+    base64 --decode --ignore-garbage $DOCKER_HOME/.ssh/id_rsa_base64 > $DOCKER_HOME/.ssh/id_rsa && \
     chmod 600 $DOCKER_HOME/.ssh/id_rsa && \
     eval $(ssh-agent) && \
     echo -e "StrictHostKeyChecking no" >> /etc/ssh/ssh_config && \
