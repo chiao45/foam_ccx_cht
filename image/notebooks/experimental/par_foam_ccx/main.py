@@ -20,6 +20,7 @@ if ccx_logoff:
 use_relax = True
 under_relax_obj = DynamicUnderRelaxation
 init_omega = 0.95
+fluid_dup_copy = 3  # for each side
 
 tol = 1e-3
 if tol > 1e-1:
@@ -49,7 +50,6 @@ if comm_size != 2:
 # domain decom, we can simply compute the ids, 1-based
 g_size = iface.g_size()
 f_size = iface.size()
-gids = np.arange(comm_rank*f_size+1, (comm_rank+1)*f_size+1, dtype='int32')
 
 # init solid on master process
 if comm_rank == 0:
@@ -97,6 +97,31 @@ if run_solid:
 # put a barrier here for extra safety
 comm.barrier()
 
+def dup_fluid_mesh(fnodes, dist, copy):
+    """This is for duplicating the fluid mesh in z-direction for supporting interpolation"""
+    n = fnodes.shape[0]
+    dist_ = fnodes[0, 2] #  input original z position
+    temp = fnodes.copy()
+    for i in range(2*copy):
+        temp = np.concatenate((temp, fnodes), axis=0)
+    for i in range(copy):
+        temp[(i+1)*n:(i+2)*n, 2] = dist_+(i+1)*dist
+        temp[(copy+i+1)*n:(copy+i+2)*n, 2] = dist_-(i+1)*dist
+    return n, temp
+
+def dup_fluid_solu(solu, copy):
+    """assume scalar field"""
+    n = solu.size
+    my_solu = np.empty((2*copy+1)*n, dtype=float)
+    for i in range(2*copy+1):
+        my_solu[i*n:(i+1)*n]=solu
+    return my_solu
+
+(freal_size, fnodes) = dup_fluid_mesh(fnodes, 0.002, fluid_dup_copy)
+f_size = fnodes.shape[0]
+# NOTE since we know the two parts are equal in size
+# in general, we need to communicate
+gids = np.arange(comm_rank*f_size+1, (comm_rank+1)*f_size+1, dtype='int32')
 
 mapper = Mapper()
 blue = mapper.blue_mesh
@@ -136,8 +161,10 @@ mapper.register_coupling_fields(bf=Tf, gf=Ts, direct=G2B)
 mapper.end_initialization()
 
 # interface data
-fluxF = InterfaceData(size=f_size, value=0.0)
-tempF = InterfaceData(size=f_size, value=1000.0)
+fluxF = InterfaceData(size=freal_size, value=0.0)
+fluxF_dup = InterfaceData(size=f_size, value=0.0)
+tempF = InterfaceData(size=freal_size, value=1000.0)
+tempF_dup = InterfaceData(size=f_size, value=1000.0)
 if run_solid:
     fluxS = InterfaceData(size=scents.shape[0], value=0.0)
     tempS = InterfaceData(size=snodes.shape[0], value=800.0)  # initial guess
@@ -190,7 +217,8 @@ while t <= tF - 1e-6:
     mapper.begin_transfer()
     mapper.transfer_data(bf=Tf, gf=Ts, direct=G2B)
 
-    tempF.curr[:] = blue.extract_field(Tf)
+    tempF_dup.curr[:] = blue.extract_field(Tf)
+    tempF.curr[:] = tempF_dup.curr[0:freal_size]
 
     # update fluid interface temperature
     ftempAdap.assign(tempF.curr)
@@ -204,7 +232,9 @@ while t <= tF - 1e-6:
         # retrieve fluid interface flux
         fluxF.curr[:] = ffluxAdap.extract()
 
-        blue.assign_field(Ff, fluxF.curr)
+        fluxF_dup.curr[:] = dup_fluid_solu(fluxF.curr, fluid_dup_copy)
+
+        blue.assign_field(Ff, fluxF_dup.curr)
         mapper.transfer_data(bf=Ff, gf=Fs, direct=B2G)
 
         if run_solid:
@@ -228,7 +258,8 @@ while t <= tF - 1e-6:
         comm.barrier()
         mapper.transfer_data(bf=Tf, gf=Ts, direct=G2B)
 
-        tempF.curr[:] = blue.extract_field(Tf)
+        tempF_dup.curr[:] = blue.extract_field(Tf)
+        tempF.curr[:] = tempF_dup.curr[0:freal_size]
 
         # update residual
         tempF.update_res()
