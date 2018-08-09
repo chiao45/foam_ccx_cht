@@ -20,7 +20,7 @@ RUN sh /tmp/fix_ompi_dlopen && rm -rf /tmp/fix_ompi_dlopen && \
     rm -rf /var/lib/apt/lists/* /var/tmp/*
 
 RUN echo ${SSH_KEY} > $DOCKER_HOME/.ssh/id_rsa_base64 && \
-    base64 --decode --ignore-garbage $DOCKER_HOME/.ssh/id_rsa_base64 > $DOCKER_HOME/.ssh/id_rsa && \
+    cat $DOCKER_HOME/.ssh/id_rsa_base64 | base64 -d > $DOCKER_HOME/.ssh/id_rsa && \
     chmod 600 $DOCKER_HOME/.ssh/id_rsa && \
     rm -rf $DOCKER_HOME/.ssh/id_rsa_base64 && \
     eval $(ssh-agent) && \
