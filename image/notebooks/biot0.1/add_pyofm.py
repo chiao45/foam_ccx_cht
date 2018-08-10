@@ -1,1 +1,3 @@
-../biot1/add_pyofm.py
+import os
+home = os.environ.get('DOCKER_HOME')
+pyofm_path = home + '/libofm/python'
