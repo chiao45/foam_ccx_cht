@@ -1,15 +1,11 @@
 from pyccx import *
 import numpy as np
-from interface import DynamicUnderRelaxation, InterfaceData, RelativeCovergenceMonitor, AbsCovergenceMonitor, ConstantUnderRelaxation
+from interface import DynamicUnderRelaxation, InterfaceData, RelativeCovergenceMonitor
 import pyofm as ofm
 import sys
 # construct mapper
 from parpydtk2 import *
 import scipy.io as sio
-
-# local support radius
-fluid_r = 0.02
-solid_r = 0.02
 
 ccx_logoff = True
 if ccx_logoff:
@@ -19,14 +15,13 @@ if ccx_logoff:
 
 use_relax = True
 under_relax_obj = DynamicUnderRelaxation
-init_omega = 0.95
-fluid_dup_copy = 3  # for each side
+init_omega = 1.0
 
-tol = 1e-3
+tol = 5e-4
 if tol > 1e-1:
     print('The tolerance is too large, this may lead to instability or low quality results')
 
-
+# fluid solver must be initialized first, and parallel must be set to True
 solverF = ofm.make_solver(
     'buoyantPimpleFoam', exec_name=sys.argv[0], kase='fluid', parallel=True)
 solverF.create_fields()
@@ -38,13 +33,14 @@ fnodes = iface.extract_centres()
 ftempAdap = ofm.CHT.TemperatureAdapter(iface)
 ffluxAdap = ofm.CHT.HeatFluxAdapter(iface)
 
+# use the comm wrapped in pyofm
 comm = ofm.MPI.COMM_WORLD
 comm_rank = comm.rank
 comm_size = comm.size
 
 if comm_size != 2:
     print('This job must run on 2 processes', file=sys.stderr)
-    sys.exit(-1)
+    sys.exit(1)
 
 # compute the global ids, since we know foam is fv codes and it uses
 # domain decom, we can simply compute the ids, 1-based
@@ -97,63 +93,55 @@ if run_solid:
 # put a barrier here for extra safety
 comm.barrier()
 
-def dup_fluid_mesh(fnodes, dist, copy):
-    """This is for duplicating the fluid mesh in z-direction for supporting interpolation"""
-    n = fnodes.shape[0]
-    dist_ = fnodes[0, 2] #  input original z position
-    temp = fnodes.copy()
-    for i in range(2*copy):
-        temp = np.concatenate((temp, fnodes), axis=0)
-    for i in range(copy):
-        temp[(i+1)*n:(i+2)*n, 2] = dist_+(i+1)*dist
-        temp[(copy+i+1)*n:(copy+i+2)*n, 2] = dist_-(i+1)*dist
-    return n, temp
-
-def dup_fluid_solu(solu, copy):
-    """assume scalar field"""
-    n = solu.size
-    my_solu = np.empty((2*copy+1)*n, dtype=float)
-    for i in range(2*copy+1):
-        my_solu[i*n:(i+1)*n]=solu
-    return my_solu
-
-(freal_size, fnodes) = dup_fluid_mesh(fnodes, 0.002, fluid_dup_copy)
 f_size = fnodes.shape[0]
-# NOTE since we know the two parts are equal in size
-# in general, we need to communicate
-gids = np.arange(comm_rank*f_size+1, (comm_rank+1)*f_size+1, dtype='int32')
+freal_size = f_size
+# print(f_size, comm_rank)
+# sys.exit(status=0)
+# hard-code, simple collective can do this in runtime through...
+gid_rank = [[1, 80], [81, 161]]
+gids = np.arange(gid_rank[comm_rank][0],
+                 gid_rank[comm_rank][1] + 1, dtype='int32')
 
-mapper = Mapper()
-blue = mapper.blue_mesh
-green = mapper.green_mesh
+blue = IMeshDB()
+green = IMeshDB()
 
 # use blue for fluid
 Tf = 'Tf'
 Ff = 'Ff'
 
+# rotate the plane
+fnodes[:, 1] = fnodes[:, 2]
+fnodes[:, 2] = 0.0
+
 blue.begin_create()
 blue.create_vertices(fnodes)
 blue.assign_gids(gids)
+blue.finish_create(False)
+
 blue.create_field(Tf)
 blue.create_field(Ff)
-blue.finish_create(False)
 
 # use green for solid
 green.begin_create()
 # only assign nodes on master rank
 if run_solid:
+    snodes[:, 1] = snodes[:, 2]
+    snodes[:, 2] = 0.0
     green.create_vertices(snodes)
+# we use trivial global ids, since ccx is serial code
+green.finish_create()
+
 # NOTE to support collective comm, we have to create fields on all cores
 Ts = 'Ts'
 Fs = 'Fs'
 green.create_field(Ts)
 green.create_field(Fs)
-# we use trivial global ids, since ccx is serial code
-green.finish_create()
+
+mapper = Mapper(blue=blue, green=green)
 
 # some parameters
-mapper.radius_b = fluid_r
-mapper.radius_g = solid_r
+mapper.dimension = 2
+mapper.awls_conf(ref_r_b=0.1, ref_r_g=0.1)
 
 mapper.begin_initialization()
 mapper.register_coupling_fields(bf=Ff, gf=Fs, direct=B2G)
@@ -168,12 +156,10 @@ tempF_dup = InterfaceData(size=f_size, value=1000.0)
 if run_solid:
     fluxS = InterfaceData(size=scents.shape[0], value=0.0)
     tempS = InterfaceData(size=snodes.shape[0], value=800.0)  # initial guess
-else:
-    fluxS = InterfaceData(size=1, value=0.0)
-    tempS = InterfaceData(size=1, value=800.0)  # initial guess
 
-under_relax = under_relax_obj(init_omega=init_omega)
-# NOTE we pass in comm, so that the convergence can be determined consistently
+# NOTE we pass in comm for the under relaxation and conv monitor
+# so that the behavior is consistent
+under_relax = under_relax_obj(init_omega=init_omega, comm=comm)
 conv_mntr = RelativeCovergenceMonitor(tol=tol, comm=comm)
 
 # maximum pc steps allowed
@@ -185,12 +171,11 @@ if comm_rank == 0:
 
 t = 0.0
 step = 0
-tF = 0.15
-DT = 10.0*dt
+tF = 0.3
+DT = 10.0 * dt
+
 
 # I am not fully sure whether the time is consistent in foam, let's comm
-
-
 def get_dt(dt_):
     return np.min(comm.allgather(dt_))
 
@@ -211,14 +196,11 @@ while t <= tF - 1e-6:
 
     if run_solid:
         green.assign_field(Ts, tempS.curr)
-    # else:
-    #     # assign value for dup node
-    #     green.assign_field(Ts, tempS.curr[:1])
+    green.resolve_empty_partitions(Ts)
     mapper.begin_transfer()
-    mapper.transfer_data(bf=Tf, gf=Ts, direct=G2B)
+    mapper.transfer_data(bf=Tf, gf=Ts, direct=G2B, resolve_disc=True)
 
-    tempF_dup.curr[:] = blue.extract_field(Tf)
-    tempF.curr[:] = tempF_dup.curr[0:freal_size]
+    tempF.curr[:] = blue.extract_field(Tf)
 
     # update fluid interface temperature
     ftempAdap.assign(tempF.curr)
@@ -232,17 +214,17 @@ while t <= tF - 1e-6:
         # retrieve fluid interface flux
         fluxF.curr[:] = ffluxAdap.extract()
 
-        fluxF_dup.curr[:] = dup_fluid_solu(fluxF.curr, fluid_dup_copy)
+        #fluxF_dup.curr[:] = dup_fluid_solu(fluxF.curr, fluid_dup_copy)
 
-        blue.assign_field(Ff, fluxF_dup.curr)
-        mapper.transfer_data(bf=Ff, gf=Fs, direct=B2G)
+        blue.assign_field(Ff, fluxF.curr)
+        mapper.transfer_data(bf=Ff, gf=Fs, direct=B2G, resolve_disc=True)
 
         if run_solid:
             sflux = green.extract_field(Fs)
 
             # interpolate to centres
             fluxS.curr[:] = (sflux[kon[:, 0]] +
-                             sflux[kon[:, 1]]+sflux[kon[:, 2]])/3.0
+                             sflux[kon[:, 1]] + sflux[kon[:, 2]]) / 3.0
             # update the distributed heat fluxes on solid interface
             solverS['Interface', SET].set_dfluxes(fluxS.curr)
 
@@ -253,13 +235,13 @@ while t <= tF - 1e-6:
 
             # assign values
             green.assign_field(Ts, tempS.curr)
+        green.resolve_empty_partitions(Ts)
 
         # TODO can we remove this
         comm.barrier()
-        mapper.transfer_data(bf=Tf, gf=Ts, direct=G2B)
+        mapper.transfer_data(bf=Tf, gf=Ts, direct=G2B, resolve_disc=True)
 
-        tempF_dup.curr[:] = blue.extract_field(Tf)
-        tempF.curr[:] = tempF_dup.curr[0:freal_size]
+        tempF.curr[:] = blue.extract_field(Tf)
 
         # update residual
         tempF.update_res()
@@ -271,7 +253,7 @@ while t <= tF - 1e-6:
                 solverS.finish_increment()
             solverF.advance()
             dt = solverF.dt()
-            DT = get_dt(10.0*dt)
+            DT = get_dt(10.0 * dt)
             break
         else:
             # if not converge, then underrelaxation and update to fluid then restore
@@ -286,14 +268,15 @@ while t <= tF - 1e-6:
             pc_counts = pc_counts + 1
             if pc_counts > 20 and pc_counts % 5 == 0 and comm_rank == 0:
                 print('WARNING too slow convergence for step %d with correction iterations %d...' % (
-                    step+1, pc_counts))
+                    step + 1, pc_counts))
     mapper.end_transfer()
     step += 1
     if comm_rank == 0:
         msg = 'step=%d: coupling_dt=%f, time=%f, pc_iterations=%i.' % (
             step, DT, t, pc_counts)
         print(comm_rank, msg)
-        flog.write(msg+'\n')
+        flog.write(msg + '\n')
+        flog.flush()  # we can keep tracking the latest info in the log file through tail
 
 # finalize
 if run_solid:
@@ -309,5 +292,5 @@ if comm_rank == 0:
 # write data
 sio.savemat(
     'fluid_interface%i.mat' % comm_rank,
-    {'itr_sol': tempF.curr}
+    {'itr_sol': tempF.curr, 'grid': fnodes}
 )

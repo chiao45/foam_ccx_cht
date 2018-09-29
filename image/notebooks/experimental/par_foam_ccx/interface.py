@@ -25,6 +25,10 @@ class DynamicUnderRelaxation(object):
             self.omega = 1.0
         else:
             self.omega = init_omega
+        self.comm = kwargs.get('comm', None)
+        if self.comm is not None:
+            self.size = self.comm.size
+            self.rank = self.comm.rank
 
     def determine_omega(self, idata, step, pc):
         assert isinstance(idata, InterfaceData)
@@ -32,13 +36,23 @@ class DynamicUnderRelaxation(object):
             return
         omega = self.omega
         bot = np.linalg.norm(idata.res - idata.res_prev)**2
-        if bot <= 1e-24:
-            self.omega = 1.0
+        top = np.dot(idata.res_prev, idata.res - idata.res_prev)
+        if self.comm is None or self.size == 1:
+            if bot <= 1e-24:
+                self.omega = 1.0
+            else:
+                self.omega = -omega * top / bot
         else:
-            self.omega = -omega * \
-                np.dot(idata.res_prev, idata.res - idata.res_prev) / bot
-#         if self.omega > 1.0:
-#             self.omega = 1.0
+            buffer = self.comm.allgather([top, bot])
+            Top = 0.0
+            Bot = 0.0
+            for i in range(self.size):
+                Top += buffer[i][0]
+                Bot += buffer[i][1]
+            if Bot <= 1e-24:
+                self.omega = 1.0
+            else:
+                self.omega = -omega * Top / Bot
 
     def update_solution(self, idata):
         assert isinstance(idata, InterfaceData)
@@ -61,6 +75,7 @@ class RelativeCovergenceMonitor(object):
         if self.comm is not None:
             self.size = self.comm.size
             self.rank = self.comm.rank
+        #self.ff = open('zzz{}'.format(self.rank), mode='w')
 
     def determine_convergence(self, idata):
         assert isinstance(idata, InterfaceData)
@@ -68,7 +83,7 @@ class RelativeCovergenceMonitor(object):
         if bot <= 1e-12:
             bot = 1.0
         err1 = np.linalg.norm(idata.res)
-        if self.comm is None:
+        if self.comm is None or self.size == 1:
             err = err1 / bot
             return err <= self.tol
         # let's do all
@@ -79,7 +94,9 @@ class RelativeCovergenceMonitor(object):
         for i in range(self.size):
             Err += buffer[i][0]**2
             Bot += buffer[i][1]**2
-        err = np.sqrt(Err/Bot)
+        err = np.sqrt(Err / Bot)
+        # self.ff.write('%.5e\n' % err)
+        # self.ff.flush()
         return err <= self.tol
 
 
