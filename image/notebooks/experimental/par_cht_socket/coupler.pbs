@@ -1,0 +1,11 @@
+#!/bin/bash
+#PBS -l nodes=2:ppn=1,walltime=04:00:00
+#PBS -N foam_ccx_par_socket
+#PBS -q short
+#PBS -j oe
+
+. <set up the environment>
+
+cd $PBS_O_WORKDIR
+
+mpirun -np 2 python main_pbs.py &>info_coupler.log

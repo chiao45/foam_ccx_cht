@@ -1,0 +1,11 @@
+#!/bin/bash
+#PBS -l nodes=1:ppn=1,walltime=04:00:00
+#PBS -N child_ccx
+#PBS -q short
+#PBS -j oe
+
+. <set up the environment>
+
+cd $PBS_O_WORKDIR
+
+ccx_client solid/solidNbi1 couplingFDSN.ini &>ccx_child.log
